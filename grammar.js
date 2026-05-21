@@ -9,8 +9,11 @@ module.exports = grammar({
     ],
 
     conflicts: $ => [
-        [$._expression, $.struct_literal], 
+        [$._expression, $.struct_literal],
         [$.union_type, $.binary_expression],
+        [$._expression, $.named_type],
+        [$.var_statement],
+        [$.array_type, $._expression],
     ],
 
     rules: {
@@ -145,7 +148,7 @@ module.exports = grammar({
         ref_type: $ => seq('ref', '(', $._type, ')'),
         mut_type: $ => seq('mut', '(', $._type, ')'),
         list_type: $ => seq('list', '[', $._type, ']'),
-        array_type: $ => seq('[', $.integer_literal, ']', $._type),
+        array_type: $ => prec(1, seq('[', $.integer_literal, ']', $._type)),
 
         fn_type: $ => seq(
             '(', 'fn', '(',
@@ -153,7 +156,7 @@ module.exports = grammar({
             ')', $._type, ')',
         ),
 
-        union_type: $ => seq($._type, '|', $._type),
+        union_type: $ => prec.left(seq($._type, '|', $._type)),
 
         named_type: $ => $.identifier,
 
@@ -221,10 +224,7 @@ module.exports = grammar({
         match_arm: $ => seq(
             choice('ok', 'error'),
             field('binding', $.identifier), '=>',
-            choice(
-                seq('(', repeat($._statement), ')'),
-                $._statement,
-            ),
+            $.block,
         ),
 
         expression_statement: $ => seq($._expression),
@@ -247,7 +247,6 @@ module.exports = grammar({
             $.none_literal,
             $.array_literal,
             $.struct_literal,
-            $.fn_value,
             seq('(', $._expression, ')'),
         ),
 
@@ -335,10 +334,6 @@ module.exports = grammar({
             '[',
             optional(seq($._expression, repeat(seq(',', $._expression)), optional(','))),
             ']',
-        ),
-
-        fn_value: $ => seq(
-            $.identifier,
         ),
 
         integer_literal: $ => token(choice(
